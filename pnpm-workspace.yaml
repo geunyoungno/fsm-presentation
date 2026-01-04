@@ -1,0 +1,5 @@
+packages:
+  - '01-basic-fsm'
+  - '02-xstate-examples'
+  - '03-workflow-comparison'
+  - '04-advanced-topics'

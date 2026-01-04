@@ -1,0 +1,23 @@
+{
+  "name": "03-workflow-comparison",
+  "version": "1.0.0",
+  "description": "Comparison between XState, Mastra Workflow, and LangGraph",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "xstate": "node dist/xstate-workflow.js",
+    "mastra": "node dist/mastra-workflow.js",
+    "langgraph": "node dist/langgraph-workflow.js"
+  },
+  "dependencies": {
+    "xstate": "^5.25.0",
+    "@mastra/core": "^0.24.9",
+    "@langchain/core": "^1.1.8",
+    "@langchain/langgraph": "^1.0.7",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3"
+  }
+}

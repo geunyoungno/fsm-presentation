@@ -1,0 +1,192 @@
+/**
+ * Mastra Workflow를 사용한 주문 처리 워크플로우
+ * AI 통합과 복잡한 비즈니스 로직에 최적화
+ */
+
+import { createStep, createWorkflow } from '@mastra/core';
+import { z } from 'zod';
+
+// 주문 처리에 필요한 전체 상태 스키마
+const orderSchema = z.object({
+  orderId: z.string(),
+  items: z.array(z.string()),
+  total: z.number(),
+  paymentStatus: z.enum(['pending', 'completed', 'failed']),
+  shippingStatus: z.enum(['pending', 'shipped', 'delivered']),
+  retryCount: z.number()
+});
+
+// 입력은 일부 필드만 허용하도록 partial로 정의
+const orderInputSchema = orderSchema.partial();
+
+type OrderState = z.infer<typeof orderSchema>;
+type OrderSeed = z.infer<typeof orderInputSchema>;
+
+const CONFIRM_DELAY_MS = 500;
+const PAYMENT_DELAY_MS = 1000;
+const SHIPPING_DELAY_MS = 2000;
+const MAX_PAYMENT_RETRIES = 3;
+const PAYMENT_SUCCESS_RATE = 0.7;
+
+// 공통 지연 유틸리티 (워크플로우 단계 시뮬레이션)
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const createOrder = createStep({
+  id: 'create-order',
+  inputSchema: orderInputSchema,
+  outputSchema: orderSchema,
+  execute: async ({ inputData }) => {
+    const seed = inputData as OrderSeed;
+    console.log('📝 [Create Order] 주문 생성 중...');
+
+    // 입력값이 없으면 기본값을 채워 주문 상태를 만든다
+    return {
+      orderId: seed.orderId ?? 'ORD-001',
+      items: seed.items?.length ? seed.items : ['Item A', 'Item B'],
+      total: seed.total ?? 100,
+      paymentStatus: 'pending',
+      shippingStatus: 'pending',
+      retryCount: 0
+    } satisfies OrderState;
+  }
+});
+
+const confirmOrder = createStep({
+  id: 'confirm-order',
+  inputSchema: orderSchema,
+  outputSchema: orderSchema,
+  execute: async ({ inputData }) => {
+    console.log('✅ [Confirm Order] 주문 확인됨');
+    await delay(CONFIRM_DELAY_MS);
+    // 확인 단계는 상태를 변경하지 않고 그대로 전달
+    return inputData;
+  }
+});
+
+const processPayment = createStep({
+  id: 'process-payment',
+  inputSchema: orderSchema,
+  outputSchema: orderSchema,
+  execute: async ({ inputData }) => {
+    let state: OrderState = { ...inputData };
+    const maxRetries = MAX_PAYMENT_RETRIES;
+
+    // 결제 성공 또는 최대 재시도 도달까지 반복
+    while (state.paymentStatus !== 'completed' && state.retryCount < maxRetries) {
+      const attempt = state.retryCount + 1;
+      console.log(`💳 [Process Payment] 결제 처리 중... (시도 ${attempt})`);
+      await delay(PAYMENT_DELAY_MS);
+
+      const success = Math.random() < PAYMENT_SUCCESS_RATE;
+
+      if (success) {
+        console.log('✅ [Payment Success] 결제 완료!');
+        state = {
+          ...state,
+          paymentStatus: 'completed'
+        };
+        break;
+      }
+
+      console.log('❌ [Payment Failed] 결제 실패');
+      state = {
+        ...state,
+        paymentStatus: 'failed',
+        retryCount: attempt
+      };
+
+      if (state.retryCount < maxRetries) {
+        console.log(`🔄 [Retry ${state.retryCount}] 결제 재시도...`);
+      }
+    }
+
+    if (state.paymentStatus !== 'completed') {
+      console.log('🚫 [Cancelled] 최대 재시도 횟수 초과 - 주문 취소');
+    }
+
+    return state;
+  }
+});
+
+const shipOrder = createStep({
+  id: 'ship-order',
+  inputSchema: orderSchema,
+  outputSchema: orderSchema,
+  execute: async ({ inputData }) => {
+    // 결제 완료가 아니라면 배송을 건너뜀
+    if (inputData.paymentStatus !== 'completed') {
+      return inputData;
+    }
+
+    console.log('📦 [Ship Order] 배송 시작');
+    await delay(SHIPPING_DELAY_MS);
+
+    // 배송 시작 상태로 업데이트
+    return {
+      ...inputData,
+      shippingStatus: 'shipped'
+    } satisfies OrderState;
+  }
+});
+
+const deliverOrder = createStep({
+  id: 'deliver-order',
+  inputSchema: orderSchema,
+  outputSchema: orderSchema,
+  execute: async ({ inputData }) => {
+    // 배송이 시작되지 않았다면 완료 단계로 가지 않음
+    if (inputData.shippingStatus !== 'shipped') {
+      return inputData;
+    }
+
+    console.log('🎉 [Delivered] 배송 완료!');
+    console.log(`주문 ${inputData.orderId} - 총액: $${inputData.total}`);
+
+    // 최종 배송 완료 상태로 업데이트
+    return {
+      ...inputData,
+      shippingStatus: 'delivered'
+    } satisfies OrderState;
+  }
+});
+
+// Step을 순서대로 연결해 워크플로우 그래프를 정의
+const orderWorkflow = createWorkflow({
+  id: 'order-processing',
+  inputSchema: orderInputSchema,
+  outputSchema: orderSchema
+})
+  .then(createOrder)
+  .then(confirmOrder)
+  .then(processPayment)
+  .then(shipOrder)
+  .then(deliverOrder)
+  .commit();
+
+async function runMastraWorkflow() {
+  console.log('=== Mastra Order Workflow ===\n');
+  console.log('특징: AI 통합 가능, 복잡한 비즈니스 로직, 데이터 파이프라인\n');
+
+  try {
+    // run 단위로 실행하면 추적/중단/재개 같은 기능을 활용할 수 있음
+    const run = await orderWorkflow.createRunAsync();
+    const result = await run.start({ inputData: {} });
+
+    // 실행 결과 상태별로 분기 처리
+    if (result.status === 'success') {
+      console.log('\n--- 최종 주문 상태 ---');
+      console.log(result.result);
+    } else if (result.status === 'failed') {
+      console.error('워크플로우 실행 실패:', result.error);
+    } else {
+      console.warn('워크플로우가 일시 중단되었습니다.');
+    }
+
+    console.log('\n✨ Mastra 워크플로우 완료\n');
+  } catch (error) {
+    console.error('워크플로우 실행 중 오류:', error);
+  }
+}
+
+// 실행
+runMastraWorkflow();

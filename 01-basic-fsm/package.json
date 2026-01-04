@@ -1,0 +1,15 @@
+{
+  "name": "01-basic-fsm",
+  "version": "0.0.1",
+  "description": "Basic FSM concepts and simple implementations",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "toggle": "node dist/simple-toggle.js",
+    "traffic": "node dist/traffic-light.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3"
+  }
+}

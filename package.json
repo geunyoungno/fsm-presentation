@@ -1,0 +1,32 @@
+{
+  "name": "fsm-presentation",
+  "version": "0.0.1",
+  "description": "Finite State Machine (FSM) Presentation Examples",
+  "keywords": [
+    "fsm",
+    "finite-state-machine",
+    "state-machine",
+    "xstate",
+    "workflow",
+    "mastra",
+    "langgraph",
+    "typescript",
+    "statecharts"
+  ],
+  "license": "ISC",
+  "author": "Geunyoung No",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geunyoungno/fsm-presentation"
+  },
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "install:all": "pnpm install",
+    "build:all": "pnpm -r build",
+    "clean": "pnpm -r exec rm -rf dist && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
