@@ -87,20 +87,24 @@ const saveGame = (context: GameContext) => {
 // 게임 상태 머신
 const gameMachine = createMachine({
   id: 'game',
+  types: {} as {
+    context: GameContext;
+    events: GameEvent;
+  },
   initial: 'menu',
   context: {
     level: 1,
     score: 0,
     lives: 3,
     playerName: 'Player'
-  } as GameContext,
+  },
   states: {
     menu: {
       // 메인 메뉴 상태: 새 게임 시작 또는 저장된 게임 로드
       entry: () => console.log('📋 [Menu] 메인 메뉴'),
       on: {
         NEW_GAME: {
-          target: 'playing',
+          target: 'active',
           actions: assign({
             level: 1,
             score: 0,
@@ -108,70 +112,69 @@ const gameMachine = createMachine({
           })
         },
         LOAD_GAME: {
-          target: 'playing',
+          target: 'active',
           // 저장된 상태를 context에 병합
           actions: assign(({ event }) => {
-            const loadEvent = event as Extract<GameEvent, { type: 'LOAD_GAME' }>;
-            return loadEvent.savedState || {};
+            return event.savedState;
           })
         }
       }
     },
-    playing: {
-      // 실제 플레이 중 상태
-      entry: ({ context }) => {
-        console.log('🎮 [Playing] 게임 중');
-        console.log(`   레벨: ${context.level}, 점수: ${context.score}, 생명: ${context.lives}`);
-      },
-      on: {
-        EARN_POINTS: {
-          actions: assign({
-            score: ({ context, event }) => {
-              const pointsEvent = event as Extract<GameEvent, { type: 'EARN_POINTS' }>;
-              return context.score + (pointsEvent.points || 100);
-            }
-          })
-        },
-        LOSE_LIFE: {
-          actions: assign({
-            lives: ({ context }) => context.lives - 1
-          })
-        },
-        LEVEL_UP: {
-          actions: assign({
-            level: ({ context }) => context.level + 1,
-            lives: ({ context }) => context.lives + 1
-          })
-        },
-        SAVE: 'savingFromPlaying',
-        PAUSE: 'paused'
-      },
+    active: {
+      // 게임 활성 상태 (playing, paused 포함)
+      initial: 'playing',
+      // 'active' 상태를 벗어날 때의 하위 상태를 기억하는 히스토리 상태
+      history: 'shallow',
       always: {
         // 생명이 0 이하라면 즉시 게임 오버로 전환
         guard: ({ context }) => context.lives <= 0,
         target: 'gameOver'
-      }
-    },
-    paused: {
-      entry: () => console.log('⏸️  [Paused] 일시정지'),
+      },
       on: {
-        RESUME: 'playing',
-        SAVE: 'savingFromPaused',
+        // SAVE 이벤트는 active 상태 어디서든 saving 상태로 전환 가능
+        SAVE: 'saving',
         QUIT: 'menu'
+      },
+      states: {
+        playing: {
+          // 실제 플레이 중 상태
+          entry: ({ context }) => {
+            console.log('🎮 [Playing] 게임 중');
+            console.log(`   레벨: ${context.level}, 점수: ${context.score}, 생명: ${context.lives}`);
+          },
+          on: {
+            EARN_POINTS: {
+              actions: assign({
+                score: ({ context, event }) => context.score + event.points
+              })
+            },
+            LOSE_LIFE: {
+              actions: assign({
+                lives: ({ context }) => context.lives - 1
+              })
+            },
+            LEVEL_UP: {
+              actions: assign({
+                level: ({ context }) => context.level + 1,
+                lives: ({ context }) => context.lives + 1
+              })
+            },
+            PAUSE: 'paused'
+          }
+        },
+        paused: {
+          entry: () => console.log('⏸️  [Paused] 일시정지'),
+          on: {
+            RESUME: 'playing'
+          }
+        }
       }
     },
-    savingFromPlaying: {
-      // 플레이 중 저장 후 다시 playing으로 복귀
+    saving: {
+      // 저장 상태: 저장이 끝나면 이전 상태(playing 또는 paused)로 복귀
       entry: ({ context }) => saveGame(context),
       after: {
-        1000: 'playing'
-      }
-    },
-    savingFromPaused: {
-      // 일시정지 중 저장 후 다시 paused로 복귀
-      entry: ({ context }) => saveGame(context),
-      after: {
-        1000: 'paused'
+        1000: 'active' // 히스토리 상태로 전환
       }
     },
     gameOver: {
@@ -234,7 +237,8 @@ const gameActor = createActor(gameMachine);
 
 // playing 상태일 때 현재 컨텍스트를 간단히 출력
 gameActor.subscribe((state) => {
-  if (state.value === 'playing') {
+  // state.matches는 특정 상태에 있는지 확인하는 데 유용
+  if (state.matches({ active: 'playing' })) {
     const ctx = state.context;
     console.log(`📊 상태: 레벨 ${ctx.level} | 점수 ${ctx.score} | 생명 ${ctx.lives}\n`);
   }

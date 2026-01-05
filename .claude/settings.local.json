@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(pnpm -C 02-xstate-examples run build)",
+      "Bash(pnpm -C 02-xstate-examples run basic)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

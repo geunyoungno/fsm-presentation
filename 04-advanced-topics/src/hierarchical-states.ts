@@ -12,8 +12,20 @@ import { createMachine, createActor } from 'xstate';
  * - 재생 하위 상태: 일반 재생, 반복 재생, 셔플 재생
  */
 
+type MusicPlayerEvent =
+  | { type: 'POWER_ON' }
+  | { type: 'POWER_OFF' }
+  | { type: 'PLAY' }
+  | { type: 'PAUSE' }
+  | { type: 'STOP' }
+  | { type: 'TOGGLE_REPEAT' }
+  | { type: 'TOGGLE_SHUFFLE' };
+
 const musicPlayerMachine = createMachine({
   id: 'musicPlayer',
+  types: {} as {
+    events: MusicPlayerEvent;
+  },
   initial: 'powerOff',
   states: {
     powerOff: {

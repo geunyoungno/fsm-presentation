@@ -11,8 +11,7 @@ const orderSchema = z.object({
   orderId: z.string(),
   items: z.array(z.string()),
   total: z.number(),
-  paymentStatus: z.enum(['pending', 'completed', 'failed']),
-  shippingStatus: z.enum(['pending', 'shipped', 'delivered']),
+  orderStatus: z.enum(['pending', 'processing_payment', 'paid', 'shipping', 'delivered', 'canceled']),
   retryCount: z.number()
 });
 
@@ -37,15 +36,14 @@ const createOrder = createStep({
   outputSchema: orderSchema,
   execute: async ({ inputData }) => {
     const seed = inputData as OrderSeed;
-    console.log('📝 [Create Order] 주문 생성 중...');
+    console.log('⏳ [Pending] 주문 생성 중 (결제 대기)...');
 
     // 입력값이 없으면 기본값을 채워 주문 상태를 만든다
     return {
       orderId: seed.orderId ?? 'ORD-001',
       items: seed.items?.length ? seed.items : ['Item A', 'Item B'],
       total: seed.total ?? 100,
-      paymentStatus: 'pending',
-      shippingStatus: 'pending',
+      orderStatus: 'pending',
       retryCount: 0
     } satisfies OrderState;
   }
@@ -72,18 +70,19 @@ const processPayment = createStep({
     const maxRetries = MAX_PAYMENT_RETRIES;
 
     // 결제 성공 또는 최대 재시도 도달까지 반복
-    while (state.paymentStatus !== 'completed' && state.retryCount < maxRetries) {
+    while (state.orderStatus !== 'paid' && state.retryCount < maxRetries) {
       const attempt = state.retryCount + 1;
       console.log(`💳 [Process Payment] 결제 처리 중... (시도 ${attempt})`);
+      state = { ...state, orderStatus: 'processing_payment' };
       await delay(PAYMENT_DELAY_MS);
 
       const success = Math.random() < PAYMENT_SUCCESS_RATE;
 
       if (success) {
-        console.log('✅ [Payment Success] 결제 완료!');
+        console.log('💰 [Paid] 결제 완료!');
         state = {
           ...state,
-          paymentStatus: 'completed'
+          orderStatus: 'paid'
         };
         break;
       }
@@ -91,7 +90,6 @@ const processPayment = createStep({
       console.log('❌ [Payment Failed] 결제 실패');
       state = {
         ...state,
-        paymentStatus: 'failed',
         retryCount: attempt
       };
 
@@ -100,8 +98,9 @@ const processPayment = createStep({
       }
     }
 
-    if (state.paymentStatus !== 'completed') {
-      console.log('🚫 [Cancelled] 최대 재시도 횟수 초과 - 주문 취소');
+    if (state.orderStatus !== 'paid') {
+      console.log('🚫 [Canceled] 최대 재시도 횟수 초과 - 주문 취소');
+      state = { ...state, orderStatus: 'canceled' };
     }
 
     return state;
@@ -114,17 +113,17 @@ const shipOrder = createStep({
   outputSchema: orderSchema,
   execute: async ({ inputData }) => {
     // 결제 완료가 아니라면 배송을 건너뜀
-    if (inputData.paymentStatus !== 'completed') {
+    if (inputData.orderStatus !== 'paid') {
       return inputData;
     }
 
-    console.log('📦 [Ship Order] 배송 시작');
+    console.log('🚚 [Shipping] 배송 시작');
     await delay(SHIPPING_DELAY_MS);
 
     // 배송 시작 상태로 업데이트
     return {
       ...inputData,
-      shippingStatus: 'shipped'
+      orderStatus: 'shipping'
     } satisfies OrderState;
   }
 });
@@ -135,7 +134,7 @@ const deliverOrder = createStep({
   outputSchema: orderSchema,
   execute: async ({ inputData }) => {
     // 배송이 시작되지 않았다면 완료 단계로 가지 않음
-    if (inputData.shippingStatus !== 'shipped') {
+    if (inputData.orderStatus !== 'shipping') {
       return inputData;
     }
 
@@ -145,7 +144,7 @@ const deliverOrder = createStep({
     // 최종 배송 완료 상태로 업데이트
     return {
       ...inputData,
-      shippingStatus: 'delivered'
+      orderStatus: 'delivered'
     } satisfies OrderState;
   }
 });

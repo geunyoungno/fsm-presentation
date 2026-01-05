@@ -67,5 +67,5 @@ console.log(`Initial State: ${trafficLight.getState()} (${trafficLight.getAction
 // 신호등 사이클 시뮬레이션
 for (let i = 0; i < 6; i++) {
   trafficLight.transition('NEXT');
-  console.log(`Current State: ${trafficLight.getState()} (${trafficLight.getAction()})`);
+  console.log(`Current State: ${trafficLight.getState()} (${trafficLight.getAction()})\n`);
 }

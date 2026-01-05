@@ -5,9 +5,14 @@
 
 import { createMachine, createActor, assign } from 'xstate';
 
+type ToggleEvent = { type: 'TOGGLE' };
+
 // 토글 머신 정의
 const toggleMachine = createMachine({
   id: 'toggle',
+  types: {} as {
+    events: ToggleEvent;
+  },
   initial: 'inactive',
   states: {
     inactive: {

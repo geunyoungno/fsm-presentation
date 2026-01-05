@@ -41,14 +41,22 @@ const fetchUser = async (userId: number): Promise<User> => {
   };
 };
 
+type FetchEvent =
+  | { type: 'FETCH' }
+  | { type: 'RETRY' };
+
 const fetchMachine = createMachine({
   id: 'fetch',
+  types: {} as {
+    context: FetchContext;
+    events: FetchEvent;
+  },
   initial: 'idle',
   context: {
     data: null,
     error: null,
     retryCount: 0
-  } as FetchContext,
+  },
   states: {
     idle: {
       // 초기 상태: FETCH 이벤트가 들어오면 로딩으로 이동

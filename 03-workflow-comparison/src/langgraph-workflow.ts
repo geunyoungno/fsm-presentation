@@ -16,8 +16,7 @@ const OrderGraphAnnotation = Annotation.Root({
   orderId: Annotation<string>,
   items: Annotation<string[]>,
   total: Annotation<number>,
-  paymentStatus: Annotation<'pending' | 'completed' | 'failed'>,
-  shippingStatus: Annotation<'pending' | 'shipped' | 'delivered'>,
+  orderStatus: Annotation<'pending' | 'processing_payment' | 'paid' | 'shipping' | 'delivered' | 'canceled'>,
   retryCount: Annotation<number>,
   messages: Annotation<string[]>
 });
@@ -26,15 +25,14 @@ type OrderGraphState = typeof OrderGraphAnnotation.State;
 
 // 노드 함수들: 상태를 받아 부분 업데이트를 반환
 async function createOrderNode(state: OrderGraphState): Promise<Partial<OrderGraphState>> {
-  console.log('📝 [Create Order] 주문 생성 중...');
+  console.log('⏳ [Pending] 주문 생성 중 (결제 대기)...');
   return {
     orderId: 'ORD-001',
     items: ['Item A', 'Item B'],
     total: 100,
-    paymentStatus: 'pending',
-    shippingStatus: 'pending',
+    orderStatus: 'pending',
     retryCount: 0,
-    messages: [...(state.messages || []), '주문 생성됨']
+    messages: [...(state.messages || []), '주문 생성됨 (Pending)']
   };
 }
 
@@ -54,15 +52,15 @@ async function processPaymentNode(state: OrderGraphState): Promise<Partial<Order
   const success = Math.random() < PAYMENT_SUCCESS_RATE;
 
   if (success) {
-    console.log('✅ [Payment Success] 결제 완료!');
+    console.log('💰 [Paid] 결제 완료!');
     return {
-      paymentStatus: 'completed',
-      messages: [...state.messages, '결제 완료']
+      orderStatus: 'paid',
+      messages: [...state.messages, '결제 완료 (Paid)']
     };
   } else {
     console.log('❌ [Payment Failed] 결제 실패');
     return {
-      paymentStatus: 'failed',
+      orderStatus: 'pending',
       retryCount: state.retryCount + 1,
       messages: [...state.messages, `결제 실패 (시도 ${state.retryCount + 1})`]
     };
@@ -70,11 +68,11 @@ async function processPaymentNode(state: OrderGraphState): Promise<Partial<Order
 }
 
 async function shipOrderNode(state: OrderGraphState): Promise<Partial<OrderGraphState>> {
-  console.log('📦 [Ship Order] 배송 시작');
+  console.log('🚚 [Shipping] 배송 시작');
   await new Promise(resolve => setTimeout(resolve, SHIPPING_DELAY_MS));
   return {
-    shippingStatus: 'shipped',
-    messages: [...state.messages, '배송 시작됨']
+    orderStatus: 'shipping',
+    messages: [...state.messages, '배송 시작됨 (Shipping)']
   };
 }
 
@@ -82,18 +80,18 @@ async function deliverOrderNode(state: OrderGraphState): Promise<Partial<OrderGr
   console.log('🎉 [Delivered] 배송 완료!');
   console.log(`주문 ${state.orderId} - 총액: $${state.total}`);
   return {
-    shippingStatus: 'delivered',
-    messages: [...state.messages, '배송 완료']
+    orderStatus: 'delivered',
+    messages: [...state.messages, '배송 완료 (Delivered)']
   };
 }
 
 // 조건부 엣지 (라우팅 로직): 결제 결과에 따라 다음 노드를 선택
 function shouldRetryPayment(state: OrderGraphState): string {
-  if (state.paymentStatus === 'failed' && state.retryCount < MAX_PAYMENT_RETRIES) {
+  if (state.orderStatus === 'pending' && state.retryCount < MAX_PAYMENT_RETRIES) {
     console.log(`🔄 [Retry ${state.retryCount}] 결제 재시도...`);
     return 'process_payment';
-  } else if (state.paymentStatus === 'failed') {
-    console.log('🚫 [Max Retries] 최대 재시도 횟수 초과');
+  } else if (state.orderStatus === 'pending' && state.retryCount >= MAX_PAYMENT_RETRIES) {
+    console.log('🚫 [Canceled] 최대 재시도 횟수 초과 - 주문 취소');
     return END;
   }
   return 'ship_order';
@@ -130,8 +128,7 @@ async function runLangGraphWorkflow() {
       orderId: '',
       items: [],
       total: 0,
-      paymentStatus: 'pending',
-      shippingStatus: 'pending',
+      orderStatus: 'pending',
       retryCount: 0,
       messages: []
     };

@@ -398,7 +398,7 @@ test('should transition to success on SUBMIT', () => {
 ### 프로젝트 구조
 
 ```
-fsm/
+fsm-presentation/
 ├── 01-basic-fsm/              # FSM 기본 개념
 │   ├── simple-toggle.ts       # 기본 토글 예제
 │   └── traffic-light.ts       # 신호등 예제

@@ -1,5 +1,9 @@
 # 04. 고급 주제
 
+> 💡 **학습 목표**: 프로덕션 수준의 FSM 구현을 위한 고급 패턴과 실무 기법을 습득합니다.
+
+> **이전 섹션 복습:** [03-workflow-comparison](../03-workflow-comparison)에서 여러 워크플로우 라이브러리의 특징을 비교했습니다.
+
 이 섹션에서는 FSM의 고급 패턴과 실무 적용 기법을 다룹니다.
 
 ## 📚 주요 주제
@@ -112,6 +116,11 @@ actor.send({ type: 'RESTORE', context });
 
 ### 2. 디버깅 전략
 
+**XState v5 Actor 모델:**
+- 머신(machine)은 **정의**이고, 실제 실행은 actor가 담당
+- 이벤트는 actor에 `send`, 상태는 actor의 `subscribe`/`getSnapshot`으로 조회
+- 필요 시 actor 내부에서 다른 actor를 spawn하여 병렬 작업을 구성
+
 **XState DevTools:**
 ```typescript
 import { inspect } from '@statelyai/inspect';
@@ -121,13 +130,17 @@ const actor = createActor(machine, {
     iframe: false // 브라우저 DevTools 사용
   })
 });
+
+actor.start();
 ```
 
 **로깅:**
 ```typescript
-machine.on('*', (event, state) => {
-  console.log(`[${state.value}] ${event.type}`);
+const actor = createActor(machine);
+actor.subscribe((state) => {
+  console.log(`[${state.value}] ${state.event.type}`);
 });
+actor.start();
 ```
 
 ### 3. 테스트 전략
@@ -135,19 +148,22 @@ machine.on('*', (event, state) => {
 **상태별 테스트:**
 ```typescript
 test('should transition to success on SUBMIT', () => {
-  const state = machine.transition('editing', { type: 'SUBMIT' });
-  expect(state.value).toBe('success');
+  const actor = createActor(machine);
+  actor.start();
+  actor.send({ type: 'SUBMIT' });
+  expect(actor.getSnapshot().value).toBe('success');
 });
 ```
 
 **경로 테스트:**
 ```typescript
 test('full workflow', () => {
-  let state = machine.initialState;
-  state = machine.transition(state, { type: 'START' });
-  state = machine.transition(state, { type: 'PROCESS' });
-  state = machine.transition(state, { type: 'COMPLETE' });
-  expect(state.value).toBe('done');
+  const actor = createActor(machine);
+  actor.start();
+  actor.send({ type: 'START' });
+  actor.send({ type: 'PROCESS' });
+  actor.send({ type: 'COMPLETE' });
+  expect(actor.getSnapshot().value).toBe('done');
 });
 ```
 
@@ -179,10 +195,10 @@ test('full workflow', () => {
 
 ## 실행 방법
 
-아래 명령은 **레포 루트**에서 실행한다고 가정합니다.
+### 옵션 1: 프로젝트 루트에서 실행 (권장)
 
 ```bash
-# 의존성 설치
+# 프로젝트 루트에서 의존성 설치
 pnpm install
 
 # TypeScript 컴파일
@@ -195,9 +211,91 @@ pnpm -C 04-advanced-topics run hierarchical
 pnpm -C 04-advanced-topics run persistence
 ```
 
+### 옵션 2: 현재 디렉토리에서 실행
+
+```bash
+# 04-advanced-topics 디렉토리로 이동
+cd 04-advanced-topics
+
+# TypeScript 컴파일
+pnpm build
+
+# 계층적 상태 예제 실행
+pnpm hierarchical
+
+# 상태 영속화 예제 실행
+pnpm persistence
+```
+
 ## 상태 저장 파일 위치
 
 `state-persistence` 예제는 실행 폴더 기준으로 `game-save.json`을 생성하며, 데모 시작/종료 시 자동으로 삭제합니다.
+
+## 실행 결과 예시
+
+### Hierarchical States 예제 출력:
+```
+=== Hierarchical States: Music Player ===
+
+현재 상태: "powerOff"
+⚫ [Power OFF] 전원 꺼짐
+
+--- 전원 켜기 ---
+🟢 [Power ON] 전원 켜짐
+  ⏹️  [Stopped] 정지 상태
+
+현재 상태: {"powerOn":"stopped"}
+
+--- 재생 시작 ---
+  ▶️  [Playing] 재생 중
+    🎵 [Normal] 일반 재생
+
+현재 상태: {"powerOn":{"playing":"normal"}}
+
+--- 반복 재생 모드 ---
+    🔁 [Repeat] 반복 재생
+
+현재 상태: {"powerOn":{"playing":"repeat"}}
+
+--- 셔플 재생 모드 ---
+    🔀 [Shuffle] 셔플 재생
+
+현재 상태: {"powerOn":{"playing":"shuffle"}}
+
+--- 일시정지 ---
+  ⏸️  [Paused] 일시정지
+
+현재 상태: {"powerOn":"paused"}
+
+✨ 계층적 상태 데모 완료
+```
+
+### State Persistence 예제 출력:
+```
+=== State Persistence: Game Save/Load ===
+
+🎮 [idle] 게임 시작!
+점수: 0 | 레벨: 1 | 생명: 3
+
+🎯 [playing] 포인트 획득! +10점
+점수: 10 | 레벨: 1 | 생명: 3
+
+💾 [playing] 게임 저장 중...
+✅ 저장 완료!
+
+📖 [playing] 저장된 게임 불러오기...
+✅ 불러오기 완료!
+점수: 10 | 레벨: 1 | 생명: 3
+
+🎯 [playing] 포인트 획득! +10점
+점수: 20 | 레벨: 1 | 생명: 3
+
+💀 [game_over] 게임 오버!
+```
+
+**관찰 포인트:**
+- **Hierarchical States**: 중첩된 객체 형태로 계층 구조 표현 (예: `{"powerOn":{"playing":"normal"}}`)
+- **State Persistence**: 상태 저장/로드 기능으로 게임 진행 상황 유지
 
 ---
 
@@ -213,4 +311,26 @@ pnpm -C 04-advanced-topics run persistence
 
 ## 다음 단계
 
-메인 문서([fsm.md](../fsm.md))로 돌아가서 전체 내용을 복습하거나, 각 섹션의 코드를 직접 수정하며 실험해보세요!
+**이 섹션에서 배운 것:**
+- ✅ 계층적 상태로 복잡한 시스템 구조화
+- ✅ 상태 영속화로 사용자 경험 향상
+- ✅ 실무 적용 시 고려사항 (언제 사용할지, 언제 피할지)
+- ✅ 디버깅 및 테스트 전략
+
+**축하합니다! 🎉**
+
+FSM 발표 자료의 모든 섹션을 완료했습니다. 이제 다음 단계를 선택하세요:
+
+1. **복습하기**: 메인 문서([fsm.md](../fsm.md))로 돌아가 전체 내용 정리
+2. **실습하기**: 각 섹션의 코드를 직접 수정하며 실험
+3. **프로젝트에 적용하기**: 학습한 내용을 실제 프로젝트에 적용
+4. **심화 학습**:
+   - [XState 공식 문서](https://xstate.js.org/docs/)
+   - [Statecharts 원본 논문](https://www.sciencedirect.com/science/article/pii/0167642387900359)
+   - [The World of Statecharts](https://statecharts.dev/)
+
+**발표 준비 체크리스트:**
+- [ ] 모든 예제 실행 테스트
+- [ ] Stately Studio로 주요 머신 시각화
+- [ ] 질의응답 시나리오 준비
+- [ ] 실제 사용 사례 추가 (선택사항)
