@@ -5,7 +5,8 @@
 
 import { createStep, createWorkflow } from '@mastra/core';
 import { z } from 'zod';
-import { loadEnv, isOpenAIAvailable, callOpenAI } from './env.js';
+import { loadEnv, isOpenAIAvailable } from './env.js';
+import { callOpenAI } from './openai-client.js';
 
 // 환경 변수 로드
 const env = loadEnv();

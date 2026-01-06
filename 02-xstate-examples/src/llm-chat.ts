@@ -6,16 +6,23 @@
  */
 
 import { createMachine, createActor, assign, fromPromise } from 'xstate';
-import { loadEnv, isOpenAIAvailable, callOpenAI } from './env.js';
+import { loadEnv, isOpenAIAvailable } from './env.js';
+import { callOpenAI } from './openai-client.js';
 
 // 환경 변수 로드
 const env = loadEnv();
+
+const LLM_CALL_DELAY_MS = 1000;
+const MAX_LLM_RETRIES = 3;
+const LLM_SUCCESS_RATE = 0.9;
+const RETRY_DELAY_MS = 1500;
 
 interface ChatContext {
   message: string;
   response: string | null;
   error: string | null;
   retryCount: number;
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 type ChatEvent =
@@ -27,10 +34,10 @@ type ChatEvent =
  */
 const callLLMMock = async (message: string): Promise<string> => {
   // API 호출 시뮬레이션 (1초 지연)
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, LLM_CALL_DELAY_MS));
 
-  // 10% 확률로 에러 발생 (실제 LLM API 에러 시뮬레이션)
-  if (Math.random() < 0.1) {
+  // 실패 확률 시뮬레이션 (실제 LLM API 에러 시뮬레이션)
+  if (Math.random() > LLM_SUCCESS_RATE) {
     throw new Error('LLM API 호출 실패: 타임아웃');
   }
 
@@ -58,13 +65,18 @@ const callLLMMock = async (message: string): Promise<string> => {
  * OPENAI_API_KEY가 설정되어 있으면 실제 OpenAI API를 호출하고,
  * 없으면 Mock 응답을 반환합니다.
  */
-const callLLM = async (message: string): Promise<string> => {
+const callLLM = async (
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<string> => {
   if (isOpenAIAvailable()) {
     // 실제 OpenAI API 호출
-    return await callOpenAI(message, env.OPENAI_MODEL || 'gpt-4o-mini');
+    return await callOpenAI(conversationHistory, env.OPENAI_MODEL || 'gpt-4o-mini');
   } else {
     // Mock 응답 반환
-    return await callLLMMock(message);
+    const lastMessage = conversationHistory
+      .filter(entry => entry.role === 'user')
+      .pop()?.content || '';
+    return await callLLMMock(lastMessage);
   }
 };
 
@@ -79,7 +91,8 @@ const chatMachine = createMachine({
     message: '',
     response: null,
     error: null,
-    retryCount: 0
+    retryCount: 0,
+    conversationHistory: []
   },
   states: {
     idle: {
@@ -91,7 +104,11 @@ const chatMachine = createMachine({
             message: ({ event }) => event.message,
             response: null,
             error: null,
-            retryCount: 0
+            retryCount: 0,
+            conversationHistory: ({ context, event }) => [
+              ...context.conversationHistory,
+              { role: 'user' as const, content: event.message }
+            ]
           })
         }
       }
@@ -123,13 +140,17 @@ const chatMachine = createMachine({
        */
       invoke: {
         src: fromPromise(async ({ input }: { input: ChatContext }) => {
-          return await callLLM(input.message);
+          return await callLLM(input.conversationHistory);
         }),
         input: ({ context }) => context,
         onDone: {
           target: 'success',
           actions: assign({
-            response: ({ event }) => event.output
+            response: ({ event }) => event.output,
+            conversationHistory: ({ context, event }) => [
+              ...context.conversationHistory,
+              { role: 'assistant' as const, content: event.output }
+            ]
           })
         },
         onError: {
@@ -152,7 +173,11 @@ const chatMachine = createMachine({
           actions: assign({
             message: ({ event }) => event.message,
             response: null,
-            error: null
+            error: null,
+            conversationHistory: ({ context, event }) => [
+              ...context.conversationHistory,
+              { role: 'user' as const, content: event.message }
+            ]
           })
         }
       }
@@ -160,7 +185,7 @@ const chatMachine = createMachine({
     error: {
       entry: ({ context }) => {
         console.log(`❌ [Error] LLM 호출 실패: ${context.error}`);
-        console.log(`재시도 횟수: ${context.retryCount}/3`);
+        console.log(`재시도 횟수: ${context.retryCount}/${MAX_LLM_RETRIES}`);
       },
       /**
        * LLM 재시도 로직
@@ -173,9 +198,9 @@ const chatMachine = createMachine({
        * XState의 guard를 사용하여 재시도 조건을 명확히 정의합니다.
        */
       after: {
-        1500: [
+        [RETRY_DELAY_MS]: [
           {
-            guard: ({ context }) => context.retryCount < 3,
+            guard: ({ context }) => context.retryCount < MAX_LLM_RETRIES,
             target: 'calling_llm',
             actions: [
               assign({

@@ -83,6 +83,9 @@ pnpm -C 03-workflow-comparison run langgraph   # LangGraph 구현
 
 ### 예제 2: LLM 챗봇 워크플로우
 
+LLM 에이전트는 **장기 실행 + 상태 유지**가 중요하므로, 단계/재시도/라우팅을 명시하는 FSM/워크플로우가 특히 유용합니다.
+출처: [LangGraph Overview](https://docs.langchain.com/oss/javascript/langgraph/overview), [Mastra Workflows Overview](https://mastra.ai/docs/workflows/overview)
+
 ```mermaid
 stateDiagram-v2
     [*] --> 사용자입력

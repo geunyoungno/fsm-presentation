@@ -10,6 +10,10 @@
 - `03-workflow-comparison`: XState vs Mastra vs LangGraph 비교
 - `04-advanced-topics`: 계층적 상태, 상태 영속화 등 고급 주제
 
+## 발표 자료
+
+- `docs/fsm-presentation.md`
+
 ## 🎯 빠른 선택 가이드
 
 어떤 라이브러리를 선택해야 할까요?

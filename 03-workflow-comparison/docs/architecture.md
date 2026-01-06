@@ -21,6 +21,8 @@ LangGraph는 Google의 **Pregel**과 Apache **Beam**에서 영감을 받아 설�
 웹페이지(노드) → 링크(엣지) → 중요도 계산 → 이웃에 전파 → 반복
 ```
 
+출처: https://research.google/pubs/pub36726/
+
 ### 2. Apache Beam (통합 데이터 처리 프레임워크)
 
 **핵심 개념:** 배치 + 스트리밍 통합 파이프라인
@@ -46,6 +48,8 @@ flowchart LR
 - 데이터 흐름 명확화
 - 조건부 분기 지원
 
+출처: https://beam.apache.org/documentation/basics/
+
 ### LangGraph가 가져온 것
 
 - **Pregel → 노드 독립성**: 각 노드가 독립적으로 상태 처리
@@ -53,6 +57,8 @@ flowchart LR
 - **Pregel → 반복 실행**: 루프를 통한 반복 처리 가능
 - **Beam → DAG 구조**: 명확한 파이프라인 흐름
 - **Beam → 조건부 엣지**: 동적 라우팅 및 분기
+
+참고: https://docs.langchain.com/oss/javascript/langgraph/overview
 
 ### 코드 예시로 보는 차이
 
@@ -497,7 +503,7 @@ await workflow.invoke(input);
 - [Mastra Workflows Documentation](https://mastra.ai/docs/workflows/overview)
 - [LangGraph Architecture and Design](https://medium.com/@shuv.sdr/langgraph-architecture-and-design-280c365aaf2c)
 - [Building LangGraph from first principles](https://blog.langchain.com/building-langgraph/)
-- [LangGraph Official Documentation](https://docs.langchain.com/oss/python/langgraph/overview)
+- [LangGraph Official Documentation](https://docs.langchain.com/oss/javascript/langgraph/overview)
 
 ---
 

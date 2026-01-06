@@ -186,19 +186,26 @@ LLM(Large Language Model)을 활용한 애플리케이션은 일반적인 비즈
 | **상태 중요도** | 중간 | 매우 높음 (메모리, 히스토리) |
 | **에러 처리** | 표준 패턴 | LLM 특화 (재시도, fallback) |
 
+**참고 출처:**
+- LangGraph Overview (long-running, stateful agents): https://docs.langchain.com/oss/javascript/langgraph/overview
+- Mastra Workflows Overview (structured steps): https://mastra.ai/docs/workflows/overview
+
 ### FSM이 LLM에 적합한 이유
 
 #### 학술 연구 증명
 
 **StateFlow 논문 (2024):**
-- LLM 작업을 FSM으로 모델링
-- **비용 4-6배 절감** 검증
+- LLM 작업을 state-driven workflow(FSM 관점)로 모델링
+- **ReAct 대비 LLM inference cost를 최대 5×까지 절감** (실험별 2.5×/3×/5× 보고)
 - 성능 향상 및 더 나은 제어
+- 출처: https://arxiv.org/abs/2403.11322
 
 **MetaAgent 프레임워크 (2025):**
 - FSM 기반 멀티에이전트 시스템
 - 자동으로 상태 전이 검증
 - Null-Transition으로 반복 개선
+- 효과: 멀티에이전트 워크플로우를 상태/전이로 명시해 제어 가능성을 높이고, 시나리오별 설계를 더 체계적으로 구성하는 방향
+- 출처: https://openreview.net/forum?id=a7gfCUhwdV
 
 #### XState에서 LLM 호출하기
 
