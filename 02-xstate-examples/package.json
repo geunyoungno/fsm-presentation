@@ -7,10 +7,12 @@
     "build": "tsc",
     "basic": "node dist/basic-machine.js",
     "form": "node dist/form-validation.js",
-    "fetch": "node dist/fetch-example.js"
+    "fetch": "node dist/fetch-example.js",
+    "llm": "node dist/llm-chat.js"
   },
   "dependencies": {
-    "xstate": "^5.25.0"
+    "xstate": "^5.25.0",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

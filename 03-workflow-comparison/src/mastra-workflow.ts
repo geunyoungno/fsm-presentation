@@ -69,13 +69,28 @@ const processPayment = createStep({
     let state: OrderState = { ...inputData };
     const maxRetries = MAX_PAYMENT_RETRIES;
 
-    // 결제 성공 또는 최대 재시도 도달까지 반복
+    /**
+     * Mastra의 재시도 전략: Step 내부에서 while 루프를 사용
+     *
+     * 이 접근법의 장점:
+     * - Step이 독립적으로 재시도 로직을 완전히 제어
+     * - 워크플로우 그래프는 단순하게 유지 (재시도는 Step의 내부 구현)
+     * - AI 작업(LLM 호출)의 재시도에 특히 적합
+     *
+     * 동작 방식:
+     * 1. 결제가 성공하거나(paid) 최대 재시도 횟수에 도달할 때까지 반복
+     * 2. 각 반복마다 결제 시도 → 성공 시 break, 실패 시 retryCount 증가
+     * 3. 루프 종료 후 아직 paid가 아니면 canceled로 상태 변경
+     */
     while (state.orderStatus !== 'paid' && state.retryCount < maxRetries) {
       const attempt = state.retryCount + 1;
       console.log(`💳 [Process Payment] 결제 처리 중... (시도 ${attempt})`);
+
+      // 결제 처리 중 상태로 전환
       state = { ...state, orderStatus: 'processing_payment' };
       await delay(PAYMENT_DELAY_MS);
 
+      // 70% 확률로 결제 성공 시뮬레이션
       const success = Math.random() < PAYMENT_SUCCESS_RATE;
 
       if (success) {
@@ -84,7 +99,7 @@ const processPayment = createStep({
           ...state,
           orderStatus: 'paid'
         };
-        break;
+        break; // 성공 시 즉시 루프 종료
       }
 
       console.log('❌ [Payment Failed] 결제 실패');
@@ -98,6 +113,7 @@ const processPayment = createStep({
       }
     }
 
+    // 최대 재시도 횟수 초과 시 주문 취소
     if (state.orderStatus !== 'paid') {
       console.log('🚫 [Canceled] 최대 재시도 횟수 초과 - 주문 취소');
       state = { ...state, orderStatus: 'canceled' };

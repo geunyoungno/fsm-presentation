@@ -75,11 +75,62 @@ idle → loading → success
 - 재시도 로직
 - 에러 처리
 
+### 4. LLM Chat (🆕 LLM 호출)
+
+**💡 핵심 통찰: LLM 호출도 일반 비동기 작업과 동일한 패턴!**
+
+REST API 호출 (fetch-example.ts)과 LLM API 호출 (llm-chat.ts)이 XState에서 어떻게 동일하게 처리되는지 보여줍니다.
+
+**상태 흐름:**
+```
+idle → calling_llm → success
+          ↓
+       error → (retry) → calling_llm
+          ↓
+       failed (max retries)
+```
+
+**fetch-example.ts vs llm-chat.ts 비교:**
+
+| 측면 | REST API | LLM API |
+|------|----------|---------|
+| **호출 방식** | `fetch('/api/users/1')` | `openai.chat.completions.create()` |
+| **XState 패턴** | `invoke` + `fromPromise` | `invoke` + `fromPromise` (동일!) |
+| **성공 처리** | `onDone` → 데이터 저장 | `onDone` → 응답 저장 |
+| **에러 처리** | `onError` → 재시도 | `onError` → 재시도 (동일!) |
+| **재시도 로직** | guard로 조건 확인 | guard로 조건 확인 (동일!) |
+
+**핵심 메시지:**
+```typescript
+// 패턴 1: REST API
+invoke: {
+  src: fromPromise(async () => fetch('/api/users/1'))
+}
+
+// 패턴 2: LLM API
+invoke: {
+  src: fromPromise(async () => openai.chat.completions.create({...}))
+}
+```
+**→ 완전히 동일한 패턴입니다!** XState는 "무엇을 호출하는가"에 무관심합니다.
+
+**주요 기능:**
+- LLM API 호출 시뮬레이션
+- 재시도 로직 (LLM 특화 에러 처리)
+- 대화형 인터페이스
+- 타임아웃 및 에러 핸들링
+
+**실무 팁:**
+- LLM API는 REST API보다 실패율이 높습니다 (Rate Limit, 서버 과부하 등)
+- 재시도 전략이 필수적입니다
+- XState의 guard와 after를 사용하여 지수 백오프(Exponential Backoff) 구현 가능
+
 ## 예제 파일
 
 - `src/basic-machine.ts`: 토글/카운터 머신
 - `src/form-validation.ts`: 폼 유효성 검사
-- `src/fetch-example.ts`: 비동기 데이터 페칭
+- `src/fetch-example.ts`: 비동기 데이터 페칭 (REST API)
+- `src/llm-chat.ts`: 🆕 LLM 호출 (LLM API)
 
 ## 실행 방법
 
@@ -100,6 +151,9 @@ pnpm -C 02-xstate-examples run form
 
 # 비동기 페칭 실행
 pnpm -C 02-xstate-examples run fetch
+
+# 🆕 LLM 채팅 실행
+pnpm -C 02-xstate-examples run llm
 ```
 
 ### 옵션 2: 현재 디렉토리에서 실행
@@ -119,7 +173,19 @@ pnpm form
 
 # 비동기 페칭 실행
 pnpm fetch
+
+# 🆕 LLM 채팅 실행
+pnpm llm
 ```
+
+### 환경 변수 설정 (선택사항)
+
+LLM 예제는 `.env` 파일의 `OPENAI_API_KEY` 설정 여부에 따라 다르게 동작합니다:
+
+- ✅ **OPENAI_API_KEY 있음**: 실제 OpenAI API 호출
+- 🎭 **OPENAI_API_KEY 없음**: Mock 응답 사용 (자동)
+
+자세한 설정 방법은 [프로젝트 루트 README](../README.md#환경-변수-설정-선택사항)를 참고하세요.
 
 ## 실행 결과
 

@@ -4,7 +4,13 @@
       "Bash(mkdir:*)",
       "Bash(pnpm -C 02-xstate-examples run build)",
       "Bash(pnpm -C 02-xstate-examples run basic)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm -C 03-workflow-comparison run build:*)",
+      "Bash(ls:*)",
+      "Bash(/Users/geunyoung.no/Coding/geunyoungno/fsm-presentation/03-workflow-comparison/node_modules/.bin/tsc:*)",
+      "Bash(test:*)",
+      "Bash(cat:*)"
     ]
   }
 }

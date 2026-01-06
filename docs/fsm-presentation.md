@@ -8,6 +8,7 @@
 
 1. [FSM의 정의](#1-fsm의-정의)
    - 1.1. [XState를 사용한 FSM 구현](#11-xstate를-사용한-fsm-구현)
+   - 1.2. [왜 LLM 워크플로우에 FSM인가?](#12-왜-llm-워크플로우에-fsm인가) 🆕
 2. [워크플로우 라이브러리 비교](#2-워크플로우-라이브러리-비교)
    - 2.1. [XState vs Mastra vs LangGraph](#21-xstate-vs-mastra-vs-langgraph)
 3. [FSM 관련 추가 주제](#3-fsm-관련-추가-주제)
@@ -24,35 +25,26 @@
 
 ### 1.2 핵심 구성요소
 
-```
-┌─────────────────────────────────────────┐
-│  Finite State Machine                   │
-├─────────────────────────────────────────┤
-│                                         │
-│  1. States (상태)                        │
-│     - 시스템이 가질 수 있는 상태들        │
-│                                         │
-│  2. Events (이벤트)                      │
-│     - 상태 전이를 유발하는 신호           │
-│                                         │
-│  3. Transitions (전이)                   │
-│     - 이벤트에 따른 상태 변화 규칙        │
-│                                         │
-│  4. Initial State (초기 상태)            │
-│     - 시스템의 시작 상태                 │
-│                                         │
-└─────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph FSM["Finite State Machine"]
+        States["1. States (상태)<br/>- 시스템이 가질 수 있는 상태들"]
+        Events["2. Events (이벤트)<br/>- 상태 전이를 유발하는 신호"]
+        Transitions["3. Transitions (전이)<br/>- 이벤트에 따른 상태 변화 규칙"]
+        Initial["4. Initial State (초기 상태)<br/>- 시스템의 시작 상태"]
+    end
+
+    style FSM fill:#f9f9f9,stroke:#333,stroke-width:2px
 ```
 
 ### 1.3 간단한 예제: 신호등
 
-```
-     ┌─────┐  NEXT  ┌───────┐  NEXT  ┌────────┐
-     │ RED │───────▶│ GREEN │───────▶│ YELLOW │
-     └─────┘        └───────┘        └────────┘
-        ▲                                 │
-        │                                 │
-        └─────────────NEXT─────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> RED
+    RED --> GREEN: NEXT
+    GREEN --> YELLOW: NEXT
+    YELLOW --> RED: NEXT
 ```
 
 **상태**: RED, GREEN, YELLOW
@@ -122,10 +114,14 @@ actor.send({ type: 'TOGGLE' }); // inactive -> active
 
 #### 1) 폼 유효성 검사
 
-```
-editing → validating → submitting → success
-             ↓
-          error → editing
+```mermaid
+stateDiagram-v2
+    [*] --> editing
+    editing --> validating: SUBMIT
+    validating --> submitting: Valid
+    validating --> error: Invalid
+    error --> editing: FIX
+    submitting --> success: Success
 ```
 
 - 입력 값 실시간 검증
@@ -134,10 +130,13 @@ editing → validating → submitting → success
 
 #### 2) 비동기 데이터 페칭
 
-```
-idle → loading → success
-         ↓
-      failure → (retry) → loading
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: FETCH
+    loading --> success: Success
+    loading --> failure: Error
+    failure --> loading: RETRY
 ```
 
 - Promise 통합
@@ -174,6 +173,124 @@ npm install @statelyai/inspect
 
 ---
 
+## 1.2. 왜 LLM 워크플로우에 FSM인가?
+
+### LLM 워크플로우의 특성
+
+LLM(Large Language Model)을 활용한 애플리케이션은 일반적인 비즈니스 로직과 다른 특성을 가집니다:
+
+| 특성 | 일반 로직 | LLM 워크플로우 |
+|------|----------|--------------|
+| **예측 가능성** | 높음 (결정적) | 낮음 (비결정적) |
+| **분기 복잡도** | 단순 | 복잡 (Tool Calling, 재시도) |
+| **상태 중요도** | 중간 | 매우 높음 (메모리, 히스토리) |
+| **에러 처리** | 표준 패턴 | LLM 특화 (재시도, fallback) |
+
+### FSM이 LLM에 적합한 이유
+
+#### 학술 연구 증명
+
+**StateFlow 논문 (2024):**
+- LLM 작업을 FSM으로 모델링
+- **비용 4-6배 절감** 검증
+- 성능 향상 및 더 나은 제어
+
+**MetaAgent 프레임워크 (2025):**
+- FSM 기반 멀티에이전트 시스템
+- 자동으로 상태 전이 검증
+- Null-Transition으로 반복 개선
+
+#### XState에서 LLM 호출하기
+
+**핵심 통찰: LLM 호출도 일반 비동기 작업과 동일한 패턴!**
+
+```typescript
+// 패턴 1: REST API 호출
+invoke: {
+  src: fromPromise(async () => {
+    return await fetch('/api/users/1');
+  }),
+  onDone: { target: 'success' },
+  onError: { target: 'error' }
+}
+
+// 패턴 2: LLM API 호출
+invoke: {
+  src: fromPromise(async () => {
+    return await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: message }]
+    });
+  }),
+  onDone: { target: 'success' },
+  onError: { target: 'error' }
+}
+```
+
+**→ 완전히 동일한 패턴입니다!**
+
+XState는 "무엇을 호출하는가"에 무관심합니다:
+- REST API 호출? → `invoke` + `fromPromise`
+- LLM 호출? → `invoke` + `fromPromise`
+- DB 쿼리? → `invoke` + `fromPromise`
+
+### LLM 재시도 패턴
+
+LLM API는 다양한 이유로 실패할 수 있습니다:
+- 네트워크 타임아웃
+- API 요율 제한 (Rate Limit)
+- 서버 과부하
+
+XState의 `guard`와 `after`를 사용하여 재시도 로직을 명확히 정의:
+
+```typescript
+error: {
+  entry: ({ context }) => {
+    console.log(`재시도 횟수: ${context.retryCount}/3`);
+  },
+  after: {
+    1500: [
+      {
+        guard: ({ context }) => context.retryCount < 3,
+        target: 'calling_llm',
+        actions: assign({
+          retryCount: ({ context }) => context.retryCount + 1
+        })
+      },
+      {
+        target: 'failed'
+      }
+    ]
+  }
+}
+```
+
+### 실무 예제
+
+**간단한 LLM 챗봇 FSM:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> calling_llm: SEND_MESSAGE
+    calling_llm --> success: Success
+    calling_llm --> error: Error
+    error --> calling_llm: RETRY (< 3회)
+    error --> failed: Max retries
+    success --> idle: RESET
+    failed --> [*]
+```
+
+**핵심 이점:**
+- 모든 가능한 상태를 명시적으로 정의
+- 재시도 로직이 상태 다이어그램에 표현됨
+- 타입 안전성으로 버그 방지
+- 시각화 도구로 디버깅 용이
+
+**실습 예제:** [02-xstate-examples/src/llm-chat.ts](../02-xstate-examples/src/llm-chat.ts)
+
+---
+
 ## 2. 워크플로우 라이브러리 비교
 
 ### 비교 대상
@@ -186,10 +303,17 @@ npm install @statelyai/inspect
 
 모든 라이브러리로 동일한 주문 처리 시스템을 구현하여 비교합니다.
 
-```
-주문 생성 → 주문 확인 → 결제 처리 → 배송 → 완료
-                             ↓
-                        결제 실패 → 재시도 (최대 3회)
+```mermaid
+stateDiagram-v2
+    [*] --> 주문생성
+    주문생성 --> 주문확인
+    주문확인 --> 결제처리
+    결제처리 --> 배송: 성공
+    결제처리 --> 결제실패: 실패
+    결제실패 --> 결제처리: 재시도 (< 3회)
+    결제실패 --> [*]: 최대 재시도 초과
+    배송 --> 완료
+    완료 --> [*]
 ```
 
 ---
@@ -200,12 +324,19 @@ npm install @statelyai/inspect
 
 > **💡 중요 발견:** Mastra는 XState 위에 구축되었고, LangGraph는 독립적인 구현입니다!
 
-```
-XState (Core)  ─┬─→  Mastra Workflow (XState + AI 추상화)
-                │
-                └─→  직접 사용 (세밀한 제어)
+```mermaid
+graph TB
+    XState["XState (Core)"]
+    Mastra["Mastra Workflow<br/>(XState + AI 추상화)"]
+    Direct["직접 사용<br/>(세밀한 제어)"]
+    LangGraph["LangGraph<br/>(독립적, Pregel/Apache Beam 기반)"]
 
-LangGraph (독립적, Pregel/Apache Beam 기반)
+    XState --> Mastra
+    XState --> Direct
+
+    style XState fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style Mastra fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style LangGraph fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
 ```
 
 ### 상세 비교표
@@ -296,16 +427,35 @@ LangGraph (독립적, Pregel/Apache Beam 기반)
 
 ### 선택 가이드
 
-```
-프론트엔드 앱?
-  └─ YES → XState
-  └─ NO → AI 통합 필요?
-           └─ YES → LLM 사용?
-                     └─ YES → LangGraph
-                     └─ NO → Mastra Workflow
-           └─ NO → 복잡한 UI 상태?
-                     └─ YES → XState
-                     └─ NO → 간단한 구현으로 충분
+```mermaid
+flowchart TD
+    Start["라이브러리 선택"]
+    FrontEnd{"프론트엔드 앱?"}
+    AI{"AI 통합 필요?"}
+    LLM{"LLM 사용?"}
+    ComplexUI{"복잡한 UI 상태?"}
+
+    XState1["✅ XState"]
+    XState2["✅ XState"]
+    Mastra["✅ Mastra Workflow"]
+    LangGraph["✅ LangGraph"]
+    Simple["간단한 구현으로 충분"]
+
+    Start --> FrontEnd
+    FrontEnd -->|YES| XState1
+    FrontEnd -->|NO| AI
+    AI -->|YES| LLM
+    AI -->|NO| ComplexUI
+    LLM -->|YES| LangGraph
+    LLM -->|NO| Mastra
+    ComplexUI -->|YES| XState2
+    ComplexUI -->|NO| Simple
+
+    style XState1 fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style XState2 fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style Mastra fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style LangGraph fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Simple fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 ---
@@ -321,13 +471,20 @@ LangGraph (독립적, Pregel/Apache Beam 기반)
 **주요 개념:**
 
 1. **중첩 상태 (Nested States)**
-   ```
-   powerOn
-     ├── playing
-     │   ├── normal
-     │   ├── repeat
-     │   └── shuffle
-     └── paused
+   ```mermaid
+   stateDiagram-v2
+       [*] --> powerOn
+       state powerOn {
+           [*] --> playing
+           state playing {
+               [*] --> normal
+               normal --> repeat
+               repeat --> shuffle
+               shuffle --> normal
+           }
+           playing --> paused
+           paused --> playing
+       }
    ```
 
 2. **병렬 상태 (Parallel States)**

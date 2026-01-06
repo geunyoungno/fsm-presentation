@@ -85,16 +85,38 @@ async function deliverOrderNode(state: OrderGraphState): Promise<Partial<OrderGr
   };
 }
 
-// 조건부 엣지 (라우팅 로직): 결제 결과에 따라 다음 노드를 선택
+/**
+ * LangGraph의 재시도 전략: 조건부 엣지를 사용한 동적 라우팅
+ *
+ * 이 접근법의 장점:
+ * - 워크플로우 그래프 자체가 재시도 경로를 명시적으로 표현
+ * - 각 노드는 단순한 작업만 수행 (결제 시도 1회)
+ * - 상태에 따른 동적 라우팅으로 복잡한 분기 처리 가능
+ * - 시각화했을 때 흐름을 쉽게 이해 가능
+ *
+ * 동작 방식:
+ * 1. process_payment 노드 실행 후 이 함수 호출
+ * 2. 상태를 검사하여 다음 노드 결정:
+ *    - 결제 실패(pending) + 재시도 가능 → 'process_payment' (같은 노드로 재진입)
+ *    - 결제 실패 + 최대 재시도 초과 → END (워크플로우 종료)
+ *    - 결제 성공(paid) → 'ship_order' (다음 단계로 진행)
+ *
+ * @param state - 현재 워크플로우 상태
+ * @returns 다음에 실행할 노드의 이름 또는 END
+ */
 function shouldRetryPayment(state: OrderGraphState): string {
+  // 결제 실패 상태이고 아직 재시도 가능한 경우
   if (state.orderStatus === 'pending' && state.retryCount < MAX_PAYMENT_RETRIES) {
     console.log(`🔄 [Retry ${state.retryCount}] 결제 재시도...`);
-    return 'process_payment';
-  } else if (state.orderStatus === 'pending' && state.retryCount >= MAX_PAYMENT_RETRIES) {
-    console.log('🚫 [Canceled] 최대 재시도 횟수 초과 - 주문 취소');
-    return END;
+    return 'process_payment'; // 결제 처리 노드로 다시 돌아감 (루프)
   }
-  return 'ship_order';
+  // 최대 재시도 횟수 초과 시
+  else if (state.orderStatus === 'pending' && state.retryCount >= MAX_PAYMENT_RETRIES) {
+    console.log('🚫 [Canceled] 최대 재시도 횟수 초과 - 주문 취소');
+    return END; // 워크플로우 종료
+  }
+  // 결제 성공 시
+  return 'ship_order'; // 배송 단계로 진행
 }
 
 // LangGraph 워크플로우 구성: 노드와 엣지를 명시적으로 연결
