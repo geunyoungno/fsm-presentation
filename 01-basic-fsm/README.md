@@ -30,9 +30,11 @@
 - **이벤트**: TOGGLE
 - **전이**: TOGGLE 이벤트 발생 시 상태 전환
 
-```
-OFF --[TOGGLE]--> ON
-ON  --[TOGGLE]--> OFF
+```mermaid
+stateDiagram-v2
+    [*] --> OFF
+    OFF --> ON: TOGGLE
+    ON --> OFF: TOGGLE
 ```
 
 ### 2. Traffic Light (신호등)
@@ -43,8 +45,12 @@ ON  --[TOGGLE]--> OFF
 - **이벤트**: NEXT
 - **전이**: RED → GREEN → YELLOW → RED (순환)
 
-```
-RED --[NEXT]--> GREEN --[NEXT]--> YELLOW --[NEXT]--> RED
+```mermaid
+stateDiagram-v2
+    [*] --> RED
+    RED --> GREEN: NEXT
+    GREEN --> YELLOW: NEXT
+    YELLOW --> RED: NEXT
 ```
 
 ## 예제 파일

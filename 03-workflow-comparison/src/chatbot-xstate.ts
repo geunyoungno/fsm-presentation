@@ -288,7 +288,7 @@ async function runXStateChatbot() {
   ];
 
   for (let i = 0; i < messages.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, i * 3000));
+    await new Promise(resolve => setTimeout(resolve, i * 5000));
     chatActor.send({ type: 'SEND_MESSAGE', message: messages[i] });
   }
 
@@ -297,7 +297,7 @@ async function runXStateChatbot() {
     console.log('\n✨ XState 챗봇 워크플로우 완료\n');
     chatActor.stop();
     process.exit(0);
-  }, 10000);
+  }, 20000);
 }
 
 runXStateChatbot();

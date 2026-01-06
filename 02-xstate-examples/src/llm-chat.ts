@@ -228,16 +228,17 @@ setTimeout(() => {
   });
 }, 1000);
 
+// 첫 번째 응답을 기다린 후 두 번째 질문
 setTimeout(() => {
   chatActor.send({
     type: 'SEND_MESSAGE',
     message: 'TypeScript에 대해 알려줘'
   });
-}, 5000);
+}, 10000); // 10초로 증가
 
 // 프로그램 종료
 setTimeout(() => {
   console.log('\n✨ 대화 완료\n');
   chatActor.stop();
   process.exit(0);
-}, 9000);
+}, 20000); // 20초로 증가

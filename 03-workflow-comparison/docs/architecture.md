@@ -23,19 +23,28 @@ LangGraph는 Google의 **Pregel**과 Apache **Beam**에서 영감을 받아 설�
 
 ### 2. Apache Beam (통합 데이터 처리 프레임워크)
 
+**핵심 개념:** 배치 + 스트리밍 통합 파이프라인
+
+**작동 방식:**
+```mermaid
+flowchart LR
+    Input[Input]
+    T1[Transform 1<br/>병렬]
+    T2[Transform 2<br/>병렬]
+    T3[Transform 3<br/>병렬]
+    Output[Output]
+
+    Input --> T1 --> T2 --> T3 --> Output
+
+    style T1 fill:#e3f2fd,stroke:#1976d2
+    style T2 fill:#e3f2fd,stroke:#1976d2
+    style T3 fill:#e3f2fd,stroke:#1976d2
 ```
-핵심 개념: 배치 + 스트리밍 통합 파이프라인
 
-작동 방식:
-Input → Transform 1 → Transform 2 → Transform 3 → Output
-          ↓              ↓              ↓
-        (병렬)         (병렬)         (병렬)
-
-특징:
+**특징:**
 - DAG (Directed Acyclic Graph): 비순환 방향 그래프
 - 데이터 흐름 명확화
 - 조건부 분기 지원
-```
 
 ### LangGraph가 가져온 것
 
@@ -178,9 +187,20 @@ function shouldRetryPayment(state) {
 
 ---
 
-## 🔍 구현 차이점 심층 분석
+## ⚙️ 실행 모델 / 데이터 흐름 / 트리거 방식 비교
 
-동일한 주문 처리 워크플로우가 세 라이브러리에서 **왜 다르게 구현**되는지 상세히 살펴봅니다.
+| 관점 | XState | Mastra | LangGraph |
+|---|---|---|---|
+| **실행 모델** | Actor 기반 상태 머신. 이벤트를 처리하며 상태/컨텍스트를 유지 | Step/Workflow 실행. Step을 순차/분기/병렬로 실행 | Graph 실행. 노드 실행 + 엣지(라우팅)로 그래프 순회 |
+| **데이터 저장 위치** | `context` | workflow state(스키마 기반 입력/출력) | graph state(Annotation) |
+| **데이터 흐름** | 이벤트 → 전이/액션 → `assign()`로 갱신 | Step 실행 결과가 다음 Step 입력으로 전달 | 노드가 partial update 반환 → state merge → 라우터가 다음 노드 결정 |
+| **트리거(다음으로 가게 하는 것)** | `send(event)` + `always/after/invoke(onDone/onError)` | Step 완료/실패 + 워크플로우 조립(then/branch/parallel) 규칙 | 노드 완료 후 라우팅 함수 결과(`addConditionalEdges`) |
+| **분기 표현** | guard 기반 전이(`guard`, `always`, `on` 배열 전이) | 조건 step/브랜치 구성(워크플로우 레벨) | 조건부 엣지(라우터 함수가 다음 노드명 반환) |
+| **재시도 위치(전형)** | `error` 상태 + `after`/이벤트로 재시도 경로 모델링 | Step 내부 또는 workflow 레벨에서 재시도 패턴 구성 | 라우터가 같은 노드로 되돌리는 루프 엣지 구성 |
+
+---
+
+## 🔍 구현 차이점 심층 분석
 
 ### 1. 재시도 로직 구현 방식
 

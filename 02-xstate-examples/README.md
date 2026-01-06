@@ -44,10 +44,15 @@ XState의 기본 사용법을 배웁니다.
 실제 UI에서 자주 사용하는 폼 유효성 검사를 XState로 구현합니다.
 
 **상태 흐름:**
-```
-editing → validating → submitting → success
-                ↓
-              error → editing
+```mermaid
+stateDiagram-v2
+    [*] --> editing
+    editing --> validating: SUBMIT
+    validating --> submitting: Valid
+    validating --> error: Invalid
+    error --> editing: FIX
+    submitting --> success: Success
+    success --> [*]
 ```
 
 **주요 기능:**
@@ -61,12 +66,16 @@ editing → validating → submitting → success
 Promise 기반의 비동기 작업을 XState로 처리합니다.
 
 **상태 흐름:**
-```
-idle → loading → success
-          ↓
-       failure → (retry) → loading
-          ↓
-       error (max retries)
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> loading: FETCH
+    loading --> success: Success
+    loading --> failure: Error
+    failure --> loading: RETRY (< max)
+    failure --> error: Max retries
+    success --> [*]
+    error --> [*]
 ```
 
 **주요 기능:**
@@ -82,12 +91,16 @@ idle → loading → success
 REST API 호출 (fetch-example.ts)과 LLM API 호출 (llm-chat.ts)이 XState에서 어떻게 동일하게 처리되는지 보여줍니다.
 
 **상태 흐름:**
-```
-idle → calling_llm → success
-          ↓
-       error → (retry) → calling_llm
-          ↓
-       failed (max retries)
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> calling_llm: SEND_MESSAGE
+    calling_llm --> success: Success
+    calling_llm --> error: Error
+    error --> calling_llm: RETRY (< 3회)
+    error --> failed: Max retries
+    success --> idle: RESET
+    failed --> [*]
 ```
 
 **fetch-example.ts vs llm-chat.ts 비교:**
