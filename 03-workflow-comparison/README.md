@@ -57,69 +57,6 @@ Pregel, Apache Beam 등 각 라이브러리의 기반 아키텍처를 상세히 
 2. **Mastra Workflow** - AI 통합 비즈니스 워크플로우 (XState 기반)
 3. **LangGraph** - LLM 기반 에이전트 워크플로우 (독립적 구현)
 
-## 🔄 구현 예제
-
-### 예제 1: 주문 처리 워크플로우
-
-```mermaid
-stateDiagram-v2
-    [*] --> 주문생성
-    주문생성 --> 주문확인
-    주문확인 --> 결제처리
-    결제처리 --> 배송: 성공
-    결제처리 --> 결제실패: 실패
-    결제실패 --> 결제처리: 재시도 (< 3회)
-    결제실패 --> [*]: 최대 재시도 초과
-    배송 --> 완료
-    완료 --> [*]
-```
-
-**실행 명령:**
-```bash
-pnpm -C 03-workflow-comparison run xstate      # XState 구현
-pnpm -C 03-workflow-comparison run mastra      # Mastra 구현
-pnpm -C 03-workflow-comparison run langgraph   # LangGraph 구현
-```
-
-### 예제 2: LLM 챗봇 워크플로우
-
-LLM 에이전트는 **장기 실행 + 상태 유지**가 중요하므로, 단계/재시도/라우팅을 명시하는 FSM/워크플로우가 특히 유용합니다.
-출처: [LangGraph Overview](https://docs.langchain.com/oss/javascript/langgraph/overview), [Mastra Workflows Overview](https://mastra.ai/docs/workflows/overview)
-
-```mermaid
-stateDiagram-v2
-    [*] --> 사용자입력
-    사용자입력 --> 입력검증
-    입력검증 --> LLM호출: 유효
-    입력검증 --> 실패: 빈 메시지
-    LLM호출 --> 응답출력: 성공
-    LLM호출 --> 재시도: 실패 (< 3회)
-    재시도 --> LLM호출
-    재시도 --> 실패: 최대 초과
-    응답출력 --> [*]
-    실패 --> [*]
-```
-
-**실행 명령:**
-```bash
-pnpm -C 03-workflow-comparison run chatbot-xstate      # XState 챗봇
-pnpm -C 03-workflow-comparison run chatbot-mastra      # Mastra 챗봇
-pnpm -C 03-workflow-comparison run chatbot-langgraph   # LangGraph 챗봇
-```
-
-## 📋 비교표 요약
-
-| 항목 | XState | Mastra Workflow | LangGraph |
-|------|--------|-----------------|-----------|
-| **기반 기술** | 독자적 FSM | **XState + 추상화** | Pregel/Apache Beam |
-| **주요 목적** | UI/앱 상태 관리 | 비즈니스 워크플로우 | LLM 에이전트 |
-| **학습 곡선** | 중간 | 낮음 | 중간-높음 |
-| **시각화** | ⭐⭐⭐ | ⭐ | ⭐⭐ |
-| **AI 통합** | ⭐ (수동) | ⭐⭐⭐ (네이티브) | ⭐⭐⭐ (LLM 특화) |
-| **Durable Execution** | ❌ | ⭐⭐⭐ | ⭐ (제한적) |
-| **프론트엔드** | ⭐⭐⭐ | ⭐ | ⭐ |
-| **백엔드** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-
 ## 🚀 시작하기
 
 ### 준비 사항
@@ -139,31 +76,8 @@ pnpm -C 03-workflow-comparison run build
 
 ### 환경 변수 설정 (선택사항)
 
-LLM 챗봇 예제를 **실제 OpenAI API**로 실행하려면:
-
-```bash
-# .env 파일 생성
-cp .env.example .env
-
-# .env 파일 편집
-# OPENAI_API_KEY=sk-your-actual-api-key-here
-```
-
-**환경 변수를 설정하지 않으면** Mock 응답이 자동으로 사용됩니다.
-
-## 💡 핵심 인사이트
-
-1. **Mastra는 XState의 상위 레이어입니다**
-   - Mastra = XState + AI 워크플로우 추상화 + OpenTelemetry
-   - 같은 상태 머신 엔진을 공유하지만, 다른 추상화 레벨 제공
-
-2. **LangGraph는 완전히 다른 철학입니다**
-   - Pregel/Apache Beam의 분산 그래프 처리 패러다임
-   - XState/Mastra와 독립적인 구현
-
-3. **도메인이 중요합니다**
-   - 각 라이브러리는 특정 사용 사례에 최적화됨
-   - 프로젝트 요구사항에 맞는 도구 선택이 핵심
+LLM 예제의 환경 변수 설정은 루트 README를 참고하세요:
+`README.md#환경-변수-설정-선택사항`
 
 ## 📖 상세 문서
 

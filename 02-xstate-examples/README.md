@@ -133,6 +133,9 @@ invoke: {
 - 대화형 인터페이스
 - 타임아웃 및 에러 핸들링
 
+LLM 적용 배경과 설계 근거는 발표 자료에서 정리했습니다:
+`docs/fsm-presentation.md`
+
 **실무 팁:**
 - LLM API는 REST API보다 실패율이 높습니다 (Rate Limit, 서버 과부하 등)
 - 재시도 전략이 필수적입니다

@@ -14,17 +14,11 @@
 
 - `docs/fsm-presentation.md`
 
-## 🎯 빠른 선택 가이드
+대주제(“FSM 소개 + LLM 적용”) 요약과 근거는 발표 자료에 정리했습니다:
+`docs/fsm-presentation.md`
 
-어떤 라이브러리를 선택해야 할까요?
-
-| 상황 | 추천 라이브러리 | 이유 |
-|------|----------------|------|
-| 프론트엔드 UI 상태 관리 | **XState** | React/Vue 통합, 상태 시각화 |
-| 장기 실행 백엔드 AI 워크플로우 | **Mastra** | 상태 영속화, suspend/resume |
-| LLM 에이전트 시스템 | **LangGraph** | 동적 라우팅, 도구 호출 |
-
-자세한 비교는 [03-workflow-comparison](03-workflow-comparison/README.md)을 참고하세요.
+라이브러리 비교 및 선택 가이드는 여기에서 확인하세요:
+`03-workflow-comparison/README.md`
 
 ## 준비 사항
 
@@ -105,7 +99,7 @@ pnpm -C 01-basic-fsm run traffic
 pnpm -C 02-xstate-examples run basic
 pnpm -C 02-xstate-examples run form
 pnpm -C 02-xstate-examples run fetch
-pnpm -C 02-xstate-examples run llm    # 🆕 LLM 호출 예제
+pnpm -C 02-xstate-examples run llm
 
 # 워크플로우 비교 (주문 처리)
 pnpm -C 03-workflow-comparison run xstate
